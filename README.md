@@ -12,7 +12,7 @@ ScriptMerge was created to address the need for a way to "flatten" any importMod
 ## Installing
 
 ### Pre-built
-ScriptMerge can be used as a pre-merged flat file. See this project's releases
+ScriptMerge can be used as a pre-merged flat file. See this project's [releases](https://github.com/oezingle/ScriptMerge/releases)
 
 ### Building
 ScriptMerge can build itself from the collection of modules it depends upon. Either select ScriptMerge.js through the GUI or build it using the module's ScriptMerge class

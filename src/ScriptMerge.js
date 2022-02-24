@@ -1,17 +1,46 @@
 // Variables used by Scriptable.
 // These must be at the very top of the file. Do not edit.
-// icon-color: pink; icon-glyph: magic;
+// icon-color: pink; icon-glyph: magic; share-sheet-inputs: file-url;
 // TODO: module vars should sometimes not be declared as let
 
-// TODO: Spider -> Module -> Dependencies to limit including dead modules
+// TODO: doesn't support jquery-style namespacing:
+/*
+((exports) => {
+  exports = {}
+})(module.exports || {})
+*/
 
-// TODO: add 'unmeddled' versions of globalThis object? - eg when user replaces importModule, breaking tryImport
+/*
+Changelog
+1.1.0
+  - simplified Spider behavior 
+     - breaks: any recursive use of spider
+  - improved dependency ranking
+     - switched from tree depth rating to topigraphical sort  
+  - script now removes unused modules
+     - bootstrapped file is smaller
+     - any module that doesn't take part in a global variable is stripped from the dependency tree
+  - fixed a bug detecting object syntax
+*/
 
-// TODO: SpiderList class or something to hold the list of spiders and operate on it
+/*
+TODO: leaks memory or something:
 
+Bootstrap benchmark
+0. 1.534
+1. 1.535
+2. 1.776
+3. 1.636
+4. 1.653
+5. 1.723
+6. 1.882
+7. 2.394
+8. 2.581
+9. 2.544
+*/
+
+// Disabled: Debugging-only
 //importModule = importModule("tryImport")
-
-const stacktrace = importModule("stacktrace").stacktrace
 
 const HardenedFS = importModule("HardenedFS")
 
@@ -21,6 +50,7 @@ const StringRemover = importModule("StringRemover")
 
 const minify = importModule("minify")
 
+// Disabled: Broken
 //const obfuscate = importModule("obfuscate")
 
 const escapeForRegex = importModule("escapeForRegex")
@@ -29,15 +59,15 @@ const uuidGen = importModule("uuidGen")
 
 const AlertFactory = importModule("AlertFactory")
 
+const tsort = importModule("tsort")
+
+const Benchmark = importModule("Benchmark")
+
 const {configureObject, ConfigurationPresets} = importModule("configureObject")
 
 const fs = HardenedFS.iCloud()
 
-const buildPath = (path) => {
-  return path
-    .replace(/\/[^\/]*\/\.\./g, '')
-    .replace(/^~/m, fs.documentsDirectory())
-}
+const buildPath = (path) => fs.path(path)
 
 
 
@@ -52,8 +82,9 @@ const buildPath = (path) => {
 const ScriptMerge = class {
   static defaultSettings = {
     debug: false,
-    minify: false,
+    minify: true,
     //obfuscate: false,
+    benchmark: false,
     plugins: []
   }
   
@@ -72,9 +103,8 @@ const ScriptMerge = class {
     
     this.runtime = {}
     
-    if (this.settings.debug) {
+    if (this.settings.debug)
       console.log("[ScriptMerge] Debugger Enabled")
-    }
     
     this.settings.plugins.forEach(plugin => {
       this.addToToolChain(
@@ -87,152 +117,141 @@ const ScriptMerge = class {
     })
   }
   
-  run_crawl() {
-    // Find import calls
-    this.runtime.spider = new Spider(this.content)
-    
-    if (this.settings.debug)
-      console.log("[ScriptMerge] Spider Crawling Finished")
+  run_add_depend(path, depend) {
+    this.runtime.depends.push([
+      path, depend
+    ])
   }
   
-  /**
-   * Find a spider by its path
-   **/
-  run_findSpider = (path) => {
-    const spider = this.runtime.spider
+  run_get_module(path) {
+    if (this.runtime.modules[path]) return
     
-    return spider.modules.find(elem => elem.path == path)
-    }
-  
-  run_popularity_contest() {
-    const spider = this.runtime.spider
+    const local = path.replace(fs.documentsDirectory(), "")
     
-    const popularity = {}
-    
-    /**
-     * Count dependencies
-     **/
-    const popularityContest = (spider, depth = 1) => {
-      if (spider.path) {
-        if (popularity[spider.path]) {
-          popularity[spider.path] += depth
-        } else {
-          popularity[spider.path] = depth
-        }
-        if (popularity[spider.path] > 25)
-          return
-      }
-      
-      spider.depends.forEach(depend => {
-        const dependSpider = this.run_findSpider(depend)
-  
-        if (dependSpider)
-          popularityContest(dependSpider, depth + 1)
-      })
+    if (this.settings.debug) {
+      console.log(`[ScriptMerge] Merging module: ${local}`)
     }
     
-    popularityContest(spider)
+    if (this.settings.benchmark)
+      this.runtime.modulebm.step(`Module ${local}`)
     
-    let rankedPopularity = Object  
-      .entries(popularity)
-      .sort((a,b) => b[1] - a[1])
-      .map(n => {
-        if (this.settings.debug)
-          console.log(`[ScriptMerge] ${n[0]} has popularity ${n[1]}`)
-          
-        return n[0]
-      })
-      
-    this.runtime.rankedPopularity = rankedPopularity
-  }
-  
-  run_merge_modules() {
-    this.runtime.importModuleMap = {}
-    this.runtime.output = ""
+    let mod = new Module(fs.readString(path))
     
-    this.runtime.rankedPopularity.forEach(path => {
-      const spider = this.run_findSpider(path)
-      
-      if (this.settings.debug) {
-        console.log(`[ScriptMerge] Merging Module: ${spider.path  
-  .replace(fs.documentsDirectory(), '')}`)  
-       }
-        
-      // grab, minify, rename
-      const mod = new Module(spider.content,   
-        this.settings.debug)
-        
-      this.runtime.output += ";" + mod.exported
-      
-      if (this.settings.debug)
-        this.runtime.output += "\n\n"
-        
-      this.runtime.importModuleMap[mod.exportName] = spider.path
+    if (this.settings.benchmark)
+      this.runtime.modulebm.step(`Spider ${local}`)
+    
+    const spider = new Spider(mod.exported)
+    
+    // Replace w/ absolute path imports
+    mod.exported = spider.content
+
+    this.runtime.modules[path] = mod
+    
+    spider.depends.forEach(depend => {
+      this.run_add_depend(path, depend)
+      this.run_get_module(depend)
     })
   }
   
-  run_replace_import_calls() {
-    // replace full-path import calls with the 
-    //generated module name
-    Object
-      .entries(this.runtime.importModuleMap)
-      .forEach(    
-      ([modname, path]) => {
-        this.runtime.output = this.runtime.output.replaceAll(
-          `importModule("${path}")`,
-          modname
-        )
-      })
+  run_tsort() {
+    const deps = tsort(this.runtime.depends)
+    
+    this.runtime.dependsOrdered = deps
   }
   
-  dependencyGraph() {
-    const truncatePath = (spider) => {
-      return spider.path?.replace(spider.dir+"/", "") ?? "[Parent Script]"
-    }
-    
-    const getDepends = (spider, depth=0) => {
-      const pad = "  ".repeat(depth)
-      
-      console.log(pad + truncatePath(spider))
-      
-      spider.depends.forEach(path => {
-        const sub = this.run_findSpider(path)
-        getDepends(sub, depth + 1)
+  run_remove_imports () {
+    Object.entries(this.runtime.modules)  
+      .forEach(([path, mod]) => {
+        this.runtime.output =
+          this.runtime.output
+            .replaceAll(
+              `importModule("${path}")`,
+              mod.exportName
+            )
       })
-    }
-    
-    getDepends(this.runtime.spider)
   }
   
   run () {
+    this.runtime = {
+      modules: {},
+      depends: [],
+      dependsOrdered: [],
+      output: ""
+    }
     
-    // Find import calls
-    this.run_crawl()
+    const bm = new Benchmark()
     
-    // See which imports come first
-    this.run_popularity_contest()
+    if (this.settings.benchmark) {
+      bm.start()
+      
+      bm.step("Spider")
+      
+      this.runtime.modulebm = new Benchmark("Dependency Collection")  
+      this.runtime.modulebm.start()
+      
+      this.runtime.modulebm.step("Spider root")
+    }
     
-    this.run_merge_modules()
+    this.runtime.spider = new Spider(this.content)
+
+    this.runtime.spider.depends.forEach(depend => {  
+      this.run_add_depend("root", depend)
+      this.run_get_module(depend)
+    })
     
-    let script = this.runtime.spider.content
+    if (this.settings.benchmark) {
+      this.runtime.modulebm.finish()
     
-    while(script.substr(0, 2) == "//") {
-      script = script.substring(
-        script.indexOf("\n")
+      bm.step("Dependency Sort")
+    }
+    
+    this.run_tsort()
+    
+    if (this.settings.benchmark)
+      bm.step("Add Content")
+    
+    this.runtime.dependsOrdered.forEach(dep=>{
+      if (dep === "root") return
+      
+      this.runtime.output += this.runtime.modules[dep].exported
+  
+      if (this.settings.debug) {
+        this.runtime.output += "\n\n"
+      }
+    })
+    
+    let root = this.runtime.spider.content
+    
+    // Remove scriptable vars
+    while (root.substr(0, 2) == "//") {
+      root = root.substring(
+        root.indexOf("\n")
       )
     }
     
-    this.runtime.output += script
+    this.runtime.output += root
     
-    this.run_replace_import_calls()
+    if (this.settings.benchmark)
+      bm.step("Remove importModule calls")
     
-    //this.dependencyGraph()
+    this.run_remove_imports()
     
-    if (this.settings.minify)
-      this.runtime.output = minify(this.runtime.output)
-  
-    /*if (this.settings.obfuscate)
-      this.runtime.output = obfuscate(this.runtime.output)*/
+    // Minfy if needed
+    if (this.settings.minify) {
+      if (this.settings.debug)
+        console.log("[ScriptMerge] Minifying")
+      
+      if (this.settings.benchmark)
+        bm.step("Minify")
+      
+      this.runtime.output = minify(
+        this.runtime.output
+      )
+    }
+    
+    if (this.settings.benchmark) {
+      bm.finish()
+    }
     
     return this.runtime.output
   }
@@ -244,7 +263,8 @@ const ScriptMerge = class {
   }
   
   static ToolChainSteps = {
-    READ_FILE: "readFile"
+    // Read any file
+    READ_FILE: "readFile",
   }
   
   addToToolChain(step, func, name) {
@@ -358,7 +378,7 @@ new ScriptMerge(<content>, [settings])
 or
 ScriptMerge.fromFile(<path>, [settings])
 to merge the file, use a ScriptMerge instance and call run()
-            `).then(() => {}, cancel)
+            `).then(cancel)
           })
           .addCancelAction("Cancel", cancel)
           .present()
@@ -516,7 +536,7 @@ const Module = class {
       .replace(/class\s+(?!extends)(\S+)/g, "const $1 = class")
 
     // {name} -> {name: name}
-    const r = /(?:(?:let|const|var)\s*([a-zA-Z0-9_$])|module\.exports)\s*=\s*{/g
+    const r = /(?:(?:let|const|var)\s*([a-zA-Z0-9_$])|module\.exports)\s*=\s*\{/g
     
     let match
     while((match=r.exec(this.content))!=null){
@@ -534,20 +554,15 @@ const Module = class {
         
         const original = slice
         
-        slice = slice.replace(/([^:a-zA-Z])\s*([a-zA-Z]+)([,}])/g, '$1$2: $2$3')
+        // Requires 2 patterns for some reason
+        slice = slice.replace(/([,{])\s*([a-zA-Z_$][a-zA-Z$_0-9]*)\s*}/g, '$1$2: $2}')
+        slice = slice.replace(/([,{])\s*([a-zA-Z_$][a-zA-Z$_0-9]*)\s*,/g, '$1$2: $2,')
           
         this.content = this.content
           .replace(original, slice)
       } catch (e) {console.warn(e)}
     }
   }
-  
-  /**
-   * Give up and get all global definitons
-   **/
-  /*static getGlobals(content) {
-    
-  }*/
   
   /**
    * Return a list of unrecognized symbols
@@ -601,7 +616,7 @@ const Module = class {
       
     // remove numbers
     content = content
-      .replace(/[0-9]/g)
+      .replace(/[0-9]/g, "")
     
     const decl = new RegExp(`(?:const|let|var)\\s+(${validVarName})`)
     
@@ -771,14 +786,7 @@ const Module = class {
  * Skuttle around files looking for imports
  **/
 const Spider = class {
-  constructor (content, path,paths,modules) {
-    this.paths = paths
-    
-    if (this.paths==null) this.paths = []
-    
-    this.modules = modules
-    
-    if (this.modules==null) this.modules = []
+  constructor (content, path) {
     
     // If none given, dir is home
     if (!path) {
@@ -793,10 +801,8 @@ const Spider = class {
     
     this.content = content
     
-    this.minContent = minify(content)
+    this.sr = new StringRemover(minify(content))
     
-    // Unique Children
-    this.children = []
     // Paths depended on
     this.depends = []
     
@@ -809,23 +815,11 @@ const Spider = class {
     this.findImports()
   }
   
-  static fromFile (path, paths, modules) {
+  static fromFile (path) {
     if (fs.fileExists(path)) {  
-      if (paths) {
-        if (paths.includes(path))
-          return modules.find(elem => elem.path == path)
-        
-        paths.push(path)
-      }
-      
       const content = minify(fs.readString(path))
         
-      let temp = new this(content, path, paths, modules)
-      
-      if (modules)
-        modules.push(temp)
-      
-      return temp
+      return new this(content, path)
     } else {
       console.warn(`Spider: Unable to load ${path}`)
     }
@@ -834,57 +828,52 @@ const Spider = class {
   findImports() {
     this.aliases.forEach(alias => {
       let pattern = new RegExp(
-        `${alias}\\(\\s*['"\`]([^'"\`]+)['"\`]\\s*\\)`,
+        `${alias}\\(\\s*@StringRemover_[a-zA-Z]+\\[(\\d+)\\]\\s*\\)`,  
         'g'
       )
       
-      const matches = this.minContent.match(
-        pattern
-      )
+      const matches = this.sr  
+        .getContent().match(pattern)
       
       if (!matches) return
       
       for (let match of matches) {
-        let fileName = match.replace(
-          pattern, '$1'
-        )
+        const index = Number(match.replace(pattern, "$1"))
+  
+        const string = this.sr.strings[index]
         
-        if (fs.extension(fileName) == fileName) {
+        let fileName = string
+        
+        // Remove surrounding quotes
+        fileName = fileName.substring(1, fileName.length - 1)
+        
+        if (fs.extension(fileName)==fileName)
           fileName += ".js"
-        }
         
         fileName = `${this.dir}/${fileName}`
         
         if (!fs.fileExists(fileName)) {
           console.warn(`Spider: Unable to load ${fileName}`)  
+          
           continue
         }
         
+        this.depends.push(fileName)
+        
         this.content = this.content
-          .replace(
-            match, 
+          .replaceAll(
+            `${alias}(${string})`,
             `importModule("${fileName}")`
           )
-        
-        // Add spider to module list
-        if (Spider.fromFile(
-          fileName,
-          this.paths,
-          this.modules
-        )) {
-          // fromfile returns a module or null
-          this.depends.push(fileName)
-        }
       }
     })
   }
   
+  // TODO: wouldn't detect an alias of an alias
   getImportAliases() {
     const pattern = /(\S*)\s*=\s*importModule[^\(]/g
     
-	const matches = this.content.match(  
-      pattern
-    )
+	const matches = this.content.match(pattern)
     
     if (!matches) return
 
@@ -917,6 +906,10 @@ const Spider = class {
  **/
 importModule("shouldDemo")(module, () => {
   /*const Test = importModule("Test")
+  
+  const Benchmark = importModule("Benchmark")
+  
+  const stacktrace = importModule("stacktrace").stacktrace
   
   const scopedEval = (code) => {
     return eval(`(() => {${code}})()`)
@@ -959,8 +952,9 @@ importModule("shouldDemo")(module, () => {
       new Spider(`
 const alias = importModule;
 
-const HardenedFS = alias("HardenedFS") 
-`).modules.length, 4, 'Spider'),
+const HardenedFS = alias("HardenedFS")
+const Test = alias("Test")
+`).depends.length, 2, 'Spider'),
     Test.assert(
       buildPath('/test/../dir/'), 
       '/dir/', 'buildPath - join'
@@ -1004,15 +998,25 @@ module.exports = fn
         }
       )
       
+      const bm = new Benchmark("Bootstrapping")
+      
+      bm.start()
+      
       const generated = sm.run()
+      
+      bm.finish()
       
       Pasteboard.copy(generated)
     }, "Build Self")
   )*/
   
-  ScriptMerge.gui()
+  if (args.fileURLs.length) {
+    args.fileURLs.forEach(file => {
+      ScriptMerge.gui(file)
+    })
+  } else {
+    ScriptMerge.gui()
+  }
 })
-
-// Build self gui?
 
 module.exports = ScriptMerge

@@ -2,12 +2,23 @@
 // These must be at the very top of the file. Do not edit.
 // icon-color: gray; icon-glyph: magic;
 /**
- * TODO: edge case w/ code formatted like:
+ * FILE: BracketBuffer.js
+ *
+ * Use brackets, string literals, and regex to 
+ * determine scope at a basic level. Does not
+ * play well witn comments
+ * 
+ * @author oezingle (oezingle@gmail.com)
+ **/
+
+/**
+ * BEWARE: edge case w/ code formatted like:
  * const fn = () =>
  * {
  *   ...
  * }
  * because of BracketBuffer.moveUntilLineEnd()
+ * Minify your code if it looks like this!
  **/
 
 // how on earth is regex detected

@@ -1,7 +1,15 @@
 // Variables used by Scriptable.
 // These must be at the very top of the file. Do not edit.
 // icon-color: green; icon-glyph: magic;
-// TODO: Regex flags
+/**
+ * FILE: StringRemover.js
+ * 
+ * Temporarily remove JavaScript string 
+ * literals from a string to lessen headaches
+ * when interpreting code
+ * 
+ * @author oezingle (oezingle@gmail.com)
+ **/
 
 const BracketBuffer = importModule("BracketBuffer")
   

@@ -117,9 +117,11 @@ const HardenedFS = class {
   directory = HardenedFS.directory
   
   path (path) {
-    return path.replace(
-      '~', this.instance.documentsDirectory()
-    )
+    const docs = this.instance.documentsDirectory()
+    
+    return path
+      .replace(/\/[^\/]*\/\.\./g, '')
+      .replace(/^~/m, docs)
   }
 }
 
@@ -134,7 +136,8 @@ importModule("shouldDemo")(module, () => {
     Test.test(() => {fm.readString("@")}, "readString", true),
     Test.test(() => {fm.readImage("@")}, "readImage", true),
     Test.test(() => {fm.read("@")}, "read", true),  
-    Test.assert(fm.directory("/dir/file.ext"), "/dir", "Directory")
+    Test.assert(fm.directory("/dir/file.ext"), "/dir", "Directory"),
+    Test.assert(fm.path("/dir/../"), "/", "Path")
   )
 })
 

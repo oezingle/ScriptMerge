@@ -1,6 +1,18 @@
 // Variables used by Scriptable.
 // These must be at the very top of the file. Do not edit.
 // icon-color: blue; icon-glyph: magic;
+/**
+ * FILE: stacktrace.js
+ *
+ * Provide the stack of thrown errors. Results 
+ * in increased overhead
+ * 
+ * @author oezingle (oezingle@gmail.com)
+ **/
+
+/**
+ * Prettify the stack of an error
+ **/
 const stacktraceError = (error) => {
   let {stack} = error
     
@@ -24,6 +36,10 @@ const stacktraceError = (error) => {
   throw error
 }
 
+/**
+ * Decorator to add the stack of an error if 
+ * it occurs in the function
+ **/
 const stacktrace = (fn) => {
   // Allow decorator
   let _stacktraced = (...args) => {

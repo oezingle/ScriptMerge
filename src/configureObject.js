@@ -1,6 +1,21 @@
 // Variables used by Scriptable.
 // These must be at the very top of the file. Do not edit.
 // icon-color: teal; icon-glyph: magic;
+/**
+ * FILE: configureObject.js
+ * 
+ * function that lets a user modify values in
+ * an object 
+ * 
+ * Supported datatypes:
+ * - Boolean
+ * - String
+ * - Number
+ * - Keyed Object
+ * 
+ * @author oezingle (oezingle@gmail.com)
+ **/
+
 const AlertFactory = importModule("AlertFactory")
 
 const getHandle = (val, handle) => {

@@ -20,7 +20,7 @@ const Test = class {
         if (wantsError) return false
       } catch (e) {
         if (!wantsError) {
-          console.error(e)
+          console.error(`On ${e.line}:${e.column}: ${e}`)
           
           return false
         }

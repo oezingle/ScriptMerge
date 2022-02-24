@@ -1,6 +1,18 @@
 // Variables used by Scriptable.
 // These must be at the very top of the file. Do not edit.
 // icon-color: purple; icon-glyph: magic;
+/**
+ * FILE: ObjectiveCProxy.js
+ *
+ * Provide Proxy-like functionality for
+ * Scriptable Objective-C native objects 
+ * (eg, Alert, QuickLook). JS's Proxy with a 
+ * native object with a getter handler (often)  
+ * results in an error.
+ * 
+ * @author oezingle (oezingle@gmail.com)
+ **/
+
 const ObjectiveCProxy = class {
   constructor (target, handler) {
     this.target = target

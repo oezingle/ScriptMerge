@@ -61,12 +61,7 @@ ScriptMerge/
 ```
 
 # TODOs
- - Break Module & Spider classes into their own files
- - Fix obfuscator
- - module vars should sometimes not be declared as let
- - Spider -> Module -> Dependencies to limit including dead modules
- - add 'unmeddled' versions of globalThis object? - eg when user replaces importModule, breaking tryImport
- - TODO: SpiderList class or something to hold the list of spiders and operate on it
+See `src/ScriptMerge.js`
 
 # License
 See LICENSE.txt. This project is licensed under the GNU GPLv3 License.

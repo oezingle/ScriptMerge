@@ -38,7 +38,8 @@ to merge the file, use a ScriptMerge instance and call run()
 ScriptMerge/
     src/ - Sources to all dependencies
         AlertFactory.js - Easy alert building
-        BracketBuffer.js - Helps determine scope
+        Benchmark.js - Dead simple benchmark utility
+	BracketBuffer.js - Helps determine scope
         configureObject.js - runtime configuration menus for arbitrary objects
         escapeForRegex.js - sanitizes strings for use in regex
         extension.js - determine extension of file (dep. for HardenedFS)
@@ -51,10 +52,12 @@ ScriptMerge/
         stacktrace.js - Add function names to errors
         StringRemover.js - Temporarily remove strings from javascript
         Test.js - Unit testing framework
-        tryImport.js - add module of origin to error messages
+        tryImport.js - Add module of origin to error messages
+	tsort.js - Sort dependencies
         uuidGen.js - Utility to generate unique identifiers
     dist/ - Prebuilt flat ScriptMerge file
         ScriptMerge.js - minified for your use
+	ScriptMerge built.scriptable - Scriptable-ready built version
 ```
 
 # TODOs

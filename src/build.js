@@ -19,6 +19,8 @@ const main = () => {
     if (typeof require != 'undefined') {
         const nodefs = require('fs')
 
+        console.log("Node: Writing built file")
+
         // TODO write .scriptable too!
         nodefs.writeFileSync(`${fs.directory(module.filename)}/../dist/ScriptMerge.js`, Buffer.from(generated, 'utf-8'))
     }

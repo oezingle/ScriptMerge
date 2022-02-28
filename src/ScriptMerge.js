@@ -790,8 +790,10 @@ const Spider = class {
     
     // If none given, dir is home
     if (!path) {
-      this.dir = fs.documentsDirectory()
+      //this.dir = fs.documentsDirectory()
+      this.dir = fs.directory(module.filename)
       
+
       this.path = undefined
     } else {
       this.path = path
@@ -1009,7 +1011,7 @@ module.exports = fn
       Pasteboard.copy(generated)
     }, "Build Self")
   )*/
-  
+
   if (args.fileURLs.length) {
     args.fileURLs.forEach(file => {
       ScriptMerge.gui(file)

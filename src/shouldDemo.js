@@ -15,7 +15,7 @@ module.exports = (module, callback) => {
   const fName = module.filename
     .replace(/.*\//, '')
     .replace(".js", '')
-    
+      
   if (scriptName === fName) {
     if (callback) {
       callback()

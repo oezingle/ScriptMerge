@@ -15,7 +15,13 @@ const main = () => {
 
     const generated = sm.run()
 
-    
+    // Check if running under node
+    if (typeof require != 'undefined') {
+        const nodefs = require('fs')
+
+        // TODO write .scriptable too!
+        nodefs.writeFileSync(`${fs.directory(module.filename)}/../dist/ScriptMerge.js`, Buffer.from(generated, 'utf-8'))
+    }
 }
 
 main()

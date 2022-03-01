@@ -1,11 +1,19 @@
-
 const ScriptMerge = importModule('ScriptMerge')
 
 const fs = importModule('HardenedFS').local()
 
 const main = () => {
+    const dir = fs.directory(module.filename)
+
+    const dist = `${dir}/../dist`
+
+    // Double check dist dir exists
+    if (!fs.fileExists(dist)) {
+        fs.createDirectory(dist)
+    }
+
     let sm = ScriptMerge.fromFile(
-        `${fs.directory(module.filename)}/ScriptMerge.js`,
+        `${dir}/ScriptMerge.js`,
         {
             debug: true,
             minify: true,
@@ -15,17 +23,9 @@ const main = () => {
 
     const generated = sm.run()
 
-    // Check if running under node
-    if (typeof require != 'undefined') {
-        const nodefs = require('fs')
+    console.log("Writing built file")
 
-        console.log("Node: Writing built file")
-
-        // TODO write .scriptable too!
-        nodefs.writeFileSync(`${fs.directory(module.filename)}/../dist/ScriptMerge.js`, Buffer.from(generated, 'utf-8'))
-    } else {
-        console.warn("Unknown JS runtime. Build file not written")
-    }
+    fs.writeString(`${dist}/ScriptMerge.js`, generated)
 }
 
 main()

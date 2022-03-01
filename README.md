@@ -14,9 +14,18 @@ ScriptMerge was created to address the need for a way to "flatten" any importMod
 ### Pre-built
 ScriptMerge can be used as a pre-merged flat file. See this project's [releases](https://github.com/oezingle/ScriptMerge/releases)
 
-### Building
+## Building
+
+### Within Scriptable
 ScriptMerge can build itself from the collection of modules it depends upon. Either select ScriptMerge.js through the GUI or build it using the module's ScriptMerge class
 
+### With Node
+Building is made possible using my [Scriptable Mocks Package](https://npmjs.org/package/scriptable-mocks)
+
+```
+npm i
+npm run build
+```
 
 ## Usage
 
@@ -40,6 +49,7 @@ ScriptMerge/
         AlertFactory.js - Easy alert building
         Benchmark.js - Dead simple benchmark utility
 	BracketBuffer.js - Helps determine scope
+        buld.js - Build script for node with benchmark
         configureObject.js - runtime configuration menus for arbitrary objects
         escapeForRegex.js - sanitizes strings for use in regex
         extension.js - determine extension of file (dep. for HardenedFS)

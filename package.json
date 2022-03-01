@@ -18,6 +18,6 @@
   },
   "homepage": "https://github.com/oezingle/ScriptMerge#readme",
   "dependencies": {
-    "scriptable-mocks": "^1.0.2"
+    "scriptable-mocks": "^1.0.3"
   }
 }

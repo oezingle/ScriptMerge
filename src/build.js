@@ -23,6 +23,8 @@ const main = () => {
 
         // TODO write .scriptable too!
         nodefs.writeFileSync(`${fs.directory(module.filename)}/../dist/ScriptMerge.js`, Buffer.from(generated, 'utf-8'))
+    } else {
+        console.warn("Unknown JS runtime. Build file not written")
     }
 }
 

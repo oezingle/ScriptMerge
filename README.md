@@ -1,5 +1,7 @@
 # ScriptMerge User Manual
 
+## Deprecation warning: I have archived this repository as this script does not work in modern versions of Scriptable.
+
 ## What? Why?
 ScriptMerge was created to address the need for a way to "flatten" any importModule calls in Scriptable scripts. It's the third iteration of such a project that I've worked on, and the first I'm satisfied with.
 
